@@ -1,0 +1,10 @@
+mpb:
+    front:
+        product_add_to_cart:
+            success: 商品をカートに追加しました。
+    product:
+        not_found: 商品が見つかりませんでした。
+    product_class:
+        not_found: 商品規格が見つかりませんでした。
+    cart:
+        add_failed: カートへの追加に失敗しました。再度お試しください。

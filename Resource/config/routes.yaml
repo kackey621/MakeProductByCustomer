@@ -1,0 +1,4 @@
+mpb_product_entry:
+  path: /mpb
+  controller: Plugin\MPBC43\Controller\MpbController::index
+  methods: [GET, POST]

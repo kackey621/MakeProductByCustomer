@@ -1,0 +1,99 @@
+{#
+    MPBC安全カートブロック - EntityNotFoundExceptionを防ぐ
+#}
+<div class="ec-headerNaviRole">
+    <div class="ec-headerNaviRole__left">
+        <div class="ec-cartNaviRole">
+            {% if is_granted('ROLE_USER') and totalQuantity > 0 %}
+                <a class="ec-cartNaviRole__cart" href="{{ url('cart') }}">
+                    <div class="ec-cartNaviRole__icon">
+                        <div class="ec-cartNaviIcon">
+                            <div class="ec-cartNaviIcon__iconWrap">
+                                <div class="ec-cartNaviIcon__icon">
+                                    <svg class="cb cb-shopping-cart"><use xlink:href="#cb-shopping-cart"></use></svg>
+                                </div>
+                                <div class="ec-cartNaviIcon__badge">{{ totalQuantity }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="ec-cartNaviRole__label">カート</span>
+                </a>
+            {% endif %}
+            {% if is_granted('ROLE_USER') %}
+                <a class="ec-cartNaviRole__navUser" href="{{ url('mypage') }}">
+                    <div class="ec-cartNaviRole__icon">
+                        <div class="ec-cartNaviIcon">
+                            <div class="ec-cartNaviIcon__iconWrap">
+                                <div class="ec-cartNaviIcon__icon">
+                                    <svg class="cb cb-user"><use xlink:href="#cb-user"></use></svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="ec-cartNaviRole__label">マイページ</span>
+                </a>
+            {% else %}
+                <a class="ec-cartNaviRole__navUser" href="{{ url('mypage_login') }}">
+                    <div class="ec-cartNaviRole__icon">
+                        <div class="ec-cartNaviIcon">
+                            <div class="ec-cartNaviIcon__iconWrap">
+                                <div class="ec-cartNaviIcon__icon">
+                                    <svg class="cb cb-user"><use xlink:href="#cb-user"></use></svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="ec-cartNaviRole__label">ログイン</span>
+                </a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="ec-headerNaviRole__right">
+        <div class="ec-cartNaviIsset">
+            {% if totalQuantity > 0 %}
+                <div class="ec-cartNaviIsset">
+                    {% set validItems = 0 %}
+                    {% for Cart in Carts %}
+                        {% for CartItem in Cart.CartItems %}
+                            {% set ProductClass = CartItem.ProductClass %}
+                            {% if ProductClass and ProductClass.Product %}
+                                {% set validItems = validItems + 1 %}
+                                {% set Product = ProductClass.Product %}
+                                <div class="ec-cartNaviIsset__cart">
+                                    <div class="ec-cartNaviIsset__cartImage">
+                                        <img src="{{ asset(Product.MainListImage|no_image_product, 'save_image') }}" alt="{{ Product.name }}">
+                                    </div>
+                                    <div class="ec-cartNaviIsset__cartContent">
+                                        <div class="ec-cartNaviIsset__cartContentTitle">{{ Product.name }}</div>
+                                        <div class="ec-cartNaviIsset__cartContentPrice">
+                                            {% if ProductClass.hasPrice02 %}
+                                                <span class="ec-price">{{ ProductClass.price02|price }}</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="ec-cartNaviIsset__cartContentNumber">数量 {{ CartItem.quantity }}</div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                    {% if validItems > 0 %}
+                        <div class="ec-cartNaviIsset__cartAction">
+                            {% set CartTotal = Carts|eccube_cart_total_price %}
+                            <p class="ec-cartNaviIsset__cartActionMsg">
+                                商品の合計金額は「<strong>{{ CartTotal|price }}</strong>」です。
+                            </p>
+                        </div>
+                    {% else %}
+                        <div class="ec-cartNaviIsset">
+                            <p>カート内に無効な商品が検出されました。ページを再読み込みしてください。</p>
+                        </div>
+                    {% endif %}
+                </div>
+            {% else %}
+                <div class="ec-cartNaviIsset">
+                    <p>現在カート内に商品はございません。</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>

@@ -1,0 +1,383 @@
+{# デバッグ情報 #}
+<!-- DEBUG: Form name: {{ form.vars.name }} -->
+<!-- DEBUG: Form full name: {{ form.vars.full_name }} -->
+<!-- DEBUG: Price field name: {{ form.price.vars.full_name }} -->
+<!-- DEBUG: Price field id: {{ form.price.vars.id }} -->
+
+{# フラッシュメッセージ表示 #}
+{% for message in app.flashes('eccube.front.cart.add.complete') %}
+    <div class="ec-alert-warning">
+        <div class="ec-alert-warning__inner">
+            <div class="ec-alert-warning__inner__item">
+                <div class="ec-alert-warning__text">{{ message }}</div>
+            </div>
+        </div>
+    </div>
+{% endfor %}
+
+{% for message in app.flashes('eccube.front.cart.add.error') %}
+    <div class="ec-alert-warning">
+        <div class="ec-alert-warning__inner">
+            <div class="ec-alert-warning__inner__item">
+                <div class="ec-alert-warning__text">{{ message }}</div>
+            </div>
+        </div>
+    </div>
+{% endfor %}
+
+{% for message in app.flashes('eccube.front.request.error') %}
+    <div class="ec-alert-warning">
+        <div class="ec-alert-warning__inner">
+            <div class="ec-alert-warning__inner__item">
+                <div class="ec-alert-warning__text">{{ message }}</div>
+            </div>
+        </div>
+    </div>
+{% endfor %}
+
+{# 商品情報 #}
+<div class="ec-productRole__profile">
+    <div class="ec-productRole__tags">
+        {% if mpbc_get_product_name_display_type() == 'predefined' %}
+            <span class="ec-productRole__btn ec-productRole__btn--primary">{{ mpbc_get_predefined_product_name() }}</span>
+        {% endif %}
+    </div>
+</div>
+
+{# フォーム #}
+<form method="post" action="{{ path('mpb_product_entry') }}" id="mpbForm" class="ec-productRole__form">
+    {{ form_widget(form._token) }}
+    
+    <div class="ec-productRole__description">
+        <div class="ec-borderedDefs">
+            {% if mpbc_get_product_name_display_type() == 'customer_input' %}
+                <dl>
+                    <dt class="ec-borderedDefs__title">{{ form_label(form.product_name) }}</dt>
+                    <dd class="ec-borderedDefs__description">
+                        <div class="ec-input">
+                            {{ form_widget(form.product_name, {'attr': {'class': 'ec-input__text'}}) }}
+                        </div>
+                    </dd>
+                </dl>
+            {% endif %}
+            
+            <dl>
+                <dt class="ec-borderedDefs__title">{{ form_label(form.price) }}</dt>
+                <dd class="ec-borderedDefs__description">
+                    <div class="ec-input">
+                        {{ form_widget(form.price, {'attr': {'class': 'ec-input__text price-input'}}) }}
+                    </div>
+                </dd>
+            </dl>
+        </div>
+    </div>
+    
+    <div class="ec-productRole__btn">
+        <div class="ec-productRole__actions">
+            <button type="submit" class="ec-blockBtn--action" id="submitBtn">
+                <span>カートに入れる</span>
+            </button>
+            <a href="{{ path('product_list') }}" class="ec-blockBtn--cancel">
+                <span>購入を続ける</span>
+            </a>
+        </div>
+    </div>
+</form>
+
+<style>
+/* ボタンエリアの強制中央配置 */
+.ec-productRole__btn {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: 100% !important;
+    margin: 2rem auto !important;
+    text-align: center !important;
+}
+
+.ec-productRole__actions {
+    display: flex !important;
+    gap: 15px !important;
+    justify-content: center !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    margin: 0 auto !important;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, debugging form fields...');
+    
+    // すべての入力フィールドを表示
+    console.log('All form inputs:');
+    document.querySelectorAll('input').forEach(function(input, index) {
+        console.log(index + ':', {
+            name: input.name,
+            id: input.id,
+            class: input.className,
+            type: input.type,
+            value: input.value
+        });
+    });
+    
+    // 価格入力フィールドを複数の方法で検索
+    var priceField = document.querySelector('input[name="mpb[price]"]') ||
+                     document.querySelector('#mpb_price') ||
+                     document.querySelector('input[name*="price"]') ||
+                     document.querySelector('input.price-input');
+    
+    console.log('Price field found:', priceField);
+    
+    if (!priceField) {
+        console.error('CRITICAL: Price field not found!');
+        // フォーム内のすべてのフィールドを再チェック
+        var form = document.getElementById('mpbForm');
+        if (form) {
+            console.log('Form found, checking all fields inside:');
+            form.querySelectorAll('input, select, textarea').forEach(function(field, index) {
+                console.log('Field ' + index + ':', field.name, field.id, field.type);
+            });
+        }
+        return;
+    }
+    
+    console.log('Price field details:', {
+        name: priceField.name,
+        id: priceField.id,
+        class: priceField.className,
+        type: priceField.type,
+        value: priceField.value
+    });
+    
+    // 価格フォーマット関数
+    function formatWithYenAndComma(value) {
+        let numbers = value.replace(/[^\d]/g, '');
+        if (numbers === '') return '';
+        return '￥' + parseInt(numbers).toLocaleString('ja-JP');
+    }
+    
+    function getNumbersOnly(value) {
+        return value.replace(/[^\d]/g, '');
+    }
+    
+    // 価格フィールドイベント
+    if (priceField) {
+        priceField.addEventListener('input', function(e) {
+            console.log('Input event on price field:', e.target.value);
+            let formatted = formatWithYenAndComma(e.target.value);
+            e.target.value = formatted;
+            console.log('Formatted to:', formatted);
+        });
+        
+        priceField.addEventListener('focus', function(e) {
+            let numbers = getNumbersOnly(e.target.value);
+            e.target.value = numbers;
+            console.log('Focus - cleaned to:', numbers);
+        });
+        
+        priceField.addEventListener('blur', function(e) {
+            if (e.target.value !== '') {
+                let formatted = formatWithYenAndComma(e.target.value);
+                e.target.value = formatted;
+                console.log('Blur - formatted to:', formatted);
+            }
+        });
+    }
+
+    // フォーム送信処理
+    var form = document.getElementById('mpbForm');
+    var submitBtn = document.getElementById('submitBtn');
+    
+    if (form) {
+        console.log('Form found:', form);
+        
+        form.addEventListener('submit', function(e) {
+            console.log('=== FORM SUBMIT STARTED ===');
+            console.log('Form action:', form.action);
+            console.log('Form method:', form.method);
+            
+            // フォームデータをすべて表示
+            var formData = new FormData(form);
+            console.log('Form data before processing:');
+            for (var pair of formData.entries()) {
+                console.log(pair[0] + ': ' + pair[1]);
+            }
+            
+            // 価格フィールドの処理
+            if (priceField && priceField.value) {
+                let originalValue = priceField.value;
+                let cleanValue = getNumbersOnly(priceField.value);
+                
+                console.log('Price processing:');
+                console.log('  Original:', originalValue);
+                console.log('  Clean:', cleanValue);
+                
+                if (cleanValue === '' || cleanValue === '0') {
+                    console.error('Invalid price value');
+                    e.preventDefault();
+                    alert('価格を入力してください。');
+                    return false;
+                }
+                
+                priceField.value = cleanValue;
+                console.log('  Final price value:', priceField.value);
+            }
+            
+            // 最終的なフォームデータを表示
+            var finalFormData = new FormData(form);
+            console.log('Final form data:');
+            for (var pair of finalFormData.entries()) {
+                console.log(pair[0] + ': ' + pair[1]);
+            }
+            
+            console.log('=== FORM SUBMIT PROCEEDING ===');
+        });
+    } else {
+        console.error('CRITICAL: Form with ID "mpbForm" not found!');
+    }
+    
+    // ボタンクリック時のイベントも監視
+    if (submitBtn) {
+        console.log('Submit button found:', submitBtn);
+        submitBtn.addEventListener('click', function(e) {
+            console.log('Submit button clicked!');
+            console.log('Button type:', e.target.type);
+            console.log('Button form:', e.target.form);
+            
+            // フォーム送信イベントが発火しない場合の対策
+            e.preventDefault(); // デフォルトの送信を一旦停止
+            
+            console.log('Processing form submission manually...');
+            
+            // 価格フィールドの処理
+            if (priceField && priceField.value) {
+                let originalValue = priceField.value;
+                let cleanValue = getNumbersOnly(priceField.value);
+                
+                console.log('Price processing:');
+                console.log('  Original:', originalValue);
+                console.log('  Clean:', cleanValue);
+                
+                if (cleanValue === '' || cleanValue === '0') {
+                    console.error('Invalid price value');
+                    alert('価格を入力してください。');
+                    return false;
+                }
+                
+                priceField.value = cleanValue;
+                console.log('  Final price value:', priceField.value);
+            }
+            
+            // フォームデータを表示
+            var formData = new FormData(form);
+            console.log('Final form data:');
+            for (var pair of formData.entries()) {
+                console.log(pair[0] + ': ' + pair[1]);
+            }
+            
+            console.log('Submitting form...');
+            
+            // 手動でフォームを送信
+            form.submit();
+        });
+    } else {
+        console.error('CRITICAL: Submit button not found!');
+    }
+});
+</script>
+</script>
+
+<style>
+.ec-pageHeader {
+    text-align: center !important;
+    margin-bottom: 3rem;
+    padding-top: 2rem;
+}
+
+.ec-pageHeader h1 {
+    margin-bottom: 1rem;
+}
+
+.ec-productRole {
+    max-width: 600px;
+    margin: 0 auto;
+    margin-top: 2rem;
+}
+
+.ec-productRole__form {
+    text-align: center;
+    width: 100%;
+}
+
+.ec-borderedDefs {
+    text-align: left;
+    margin-bottom: 2rem;
+}
+
+/* 価格入力フィールドのスピナー削除 */
+input[type="number"], .price-input {
+    -webkit-appearance: none;
+    -moz-appearance: textfield;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.price-input {
+    font-family: monospace;
+    text-align: right;
+    padding-right: 10px;
+    padding-left: 10px;
+    min-width: 150px;
+}
+
+.ec-productRole__btn {
+    /* 上記のインラインスタイルが優先されます */
+}
+
+.ec-productRole__actions {
+    /* 上記のインラインスタイルが優先されます */
+}
+
+.ec-productRole__actions .ec-blockBtn--action,
+.ec-productRole__actions .ec-blockBtn--cancel {
+    flex: 0 0 auto;
+    min-width: 160px;
+    max-width: 200px;
+    text-align: center;
+    white-space: nowrap;
+    display: inline-block;
+}
+
+@media (max-width: 767px) {
+    .ec-productRole__actions {
+        gap: 10px;
+    }
+    
+    .ec-productRole__actions .ec-blockBtn--action,
+    .ec-productRole__actions .ec-blockBtn--cancel {
+        min-width: 140px;
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .ec-productRole__actions {
+        gap: 8px;
+    }
+    
+    .ec-productRole__actions .ec-blockBtn--action,
+    .ec-productRole__actions .ec-blockBtn--cancel {
+        min-width: 120px;
+        font-size: 0.85rem;
+        padding: 12px 8px;
+    }
+}
+</style>

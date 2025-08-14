@@ -1,0 +1,70 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
+
+    Plugin\MPBC43\:
+        resource: '../../*'
+        exclude: '../../{Entity, Resource, Event.php, Controller, MPBCBundle.php, TwigBlock.php}'
+
+    Plugin\MPBC43\Controller\:
+        resource: '../../Controller'
+        tags: ['controller.service_arguments']
+    
+    # Explicit service definition for MpbController to inject cartPurchaseFlow
+    Plugin\MPBC43\Controller\MpbController:
+        arguments:
+            $cartPurchaseFlow: '@eccube.purchase.flow.cart'
+        tags: ['controller.service_arguments']
+
+    # Register Event subscriber explicitly
+    Plugin\MPBC43\Event:
+        tags:
+            - { name: 'kernel.event_subscriber' }
+    
+    # Register TwigBlock subscriber for template modifications
+    Plugin\MPBC43\TwigBlock:
+        tags:
+            - { name: 'kernel.event_subscriber' }
+    
+    # Order completion event listener for custom products
+    Plugin\MPBC43\EventListener\OrderEventListener:
+        tags:
+            - { name: 'kernel.event_subscriber' }
+    
+    # Order item template event listener for fixing broken product links
+    Plugin\MPBC43\EventListener\OrderItemEventListener:
+        tags:
+            - { name: 'kernel.event_subscriber' }
+    
+    # Twig extension for safe product link handling
+    Plugin\MPBC43\Twig\ProductSafetyExtension:
+        tags:
+            - { name: 'twig.extension' }
+    
+    # Product controller event listener for handling deleted products
+    Plugin\MPBC43\EventListener\ProductControllerEventListener:
+        tags:
+            - { name: 'kernel.event_subscriber' }
+    
+    # Cart access validation for custom products
+    Plugin\MPBC43\EventListener\CartEventListener:
+        tags:
+            - { name: 'kernel.event_subscriber' }
+    
+    # Product list filtering for custom products
+    Plugin\MPBC43\EventListener\ProductListEventListener:
+        arguments: ['@request_stack']
+        tags:
+            - { name: 'kernel.event_subscriber' }
+    
+    # Cart integrity check for invalid ProductClass entities
+    Plugin\MPBC43\EventListener\CartIntegrityEventListener:
+        tags:
+            - { name: 'kernel.event_subscriber' }
+    
+    # Twig extension for cart integrity check
+    Plugin\MPBC43\Twig\CartIntegrityExtension:
+        tags:
+            - { name: 'twig.extension' }

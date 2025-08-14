@@ -1,0 +1,27 @@
+{% extends 'default_frame.twig' %}
+
+{% set body_class = 'product_page' %}
+
+{# ページタイトルを設定 #}
+{% if page_title %}
+    {% set page_title_final = page_title %}
+{% else %}
+    {% set page_title_final = '料金を設定する' %}
+{% endif %}
+
+{% block title %}{{ page_title_final }}{% endblock %}
+
+{% block main %}
+    <div class="ec-role">
+        <div class="ec-pageHeader" style="text-align: center;">
+            <h1>{{ page_title_final }}</h1>
+            {% if page_description %}
+                <p>{{ page_description }}</p>
+            {% endif %}
+        </div>
+        
+        <div class="ec-productRole">
+            {{ include('@MPBC43/front/mpb_form.twig') }}
+        </div>
+    </div>
+{% endblock %}

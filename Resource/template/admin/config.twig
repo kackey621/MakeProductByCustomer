@@ -1,0 +1,126 @@
+{% extends '@admin/default_frame.twig' %}
+
+{% set menus = ['store', 'plugin', 'plugin_list'] %}
+
+{% block title %}MPBC{% endblock %}
+{% block sub_title %}プラグイン一覧{% endblock %}
+
+{% form_theme form '@admin/Form/bootstrap_4_horizontal_layout.html.twig' %}
+
+{% block stylesheet %}{% endblock stylesheet %}
+
+{% block javascript %}{% endblock javascript %}
+
+{% block main %}
+    <form role="form" method="post">
+
+        {{ form_widget(form._token) }}
+
+        <div class="c-contentsArea__cols">
+            <div class="c-contentsArea__primaryCol">
+                <div class="c-primaryCol">
+                    <div class="card rounded border-0 mb-4">
+                        <div class="card-header"><span>商品名表示設定</span></div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-3">
+                                    <span>商品名の表示方法</span>
+                                    <span class="badge bg-primary ml-1">必須</span>
+                                </div>
+                                <div class="col mb-2">
+                                    {{ form_widget(form.product_name_display_type) }}
+                                    {{ form_errors(form.product_name_display_type) }}
+                                    <small class="form-text text-muted">
+                                        お客様が商品名を入力するか、店側で設定した商品名を表示するかを選択してください。
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-3">
+                                    <span>店側設定商品名</span>
+                                </div>
+                                <div class="col mb-2">
+                                    {{ form_widget(form.predefined_product_name) }}
+                                    {{ form_errors(form.predefined_product_name) }}
+                                    <small class="form-text text-muted">
+                                        「店側が設定した商品名を表示」を選択した場合に使用される商品名です。
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card rounded border-0 mb-4">
+                        <div class="card-header"><span>ページレイアウト設定</span></div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-3">
+                                    <span>レイアウト</span>
+                                    <span class="badge bg-primary ml-1">必須</span>
+                                </div>
+                                <div class="col mb-2">
+                                    {{ form_widget(form.page_layout) }}
+                                    {{ form_errors(form.page_layout) }}
+                                    <small class="form-text text-muted">
+                                        MPBページに適用するレイアウトをEC-CUBEのレイアウト管理から選択してください。<br>
+                                        現在利用可能なレイアウト：
+                                        <ul>
+                                            <li>ID: 0, 1 - トップページ用レイアウト</li>
+                                            <li>ID: 2 - 下層ページ用レイアウト</li>
+                                        </ul>
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-3">
+                                    <span>ページタイトル</span>
+                                </div>
+                                <div class="col mb-2">
+                                    {{ form_widget(form.page_title) }}
+                                    {{ form_errors(form.page_title) }}
+                                    <small class="form-text text-muted">
+                                        カスタムページタイトルを設定できます。空白の場合はデフォルトタイトルが使用されます。
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-3">
+                                    <span>ページ説明文</span>
+                                </div>
+                                <div class="col mb-2">
+                                    {{ form_widget(form.page_description) }}
+                                    {{ form_errors(form.page_description) }}
+                                    <small class="form-text text-muted">
+                                        ページの説明文を入力してください。
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="c-conversionArea">
+            <div class="c-conversionArea__container">
+                <div class="row justify-content-between align-items-center">
+                    <div class="col-6">
+                        <div class="c-conversionArea__leftBlockItem">
+                            <a class="c-baseLink"
+                               href="{{ url('admin_store_plugin') }}">
+                                <i class="fa fa-backward" aria-hidden="true"></i>
+                                <span>プラグイン一覧</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="row align-items-center justify-content-end">
+                            <div class="col-auto">
+                                <button class="btn btn-ec-conversion px-5"
+                                        type="submit">登録</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+{% endblock %}

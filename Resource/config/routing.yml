@@ -1,0 +1,5 @@
+mpb_product_entry:
+    path: /mpb
+    defaults: 
+        _controller: 'Plugin\MPBC\Controller\MpbController::index'
+    methods: [GET, POST]

@@ -1,0 +1,29 @@
+{% extends 'default_frame.twig' %}
+
+{% block main %}
+<div class="ec-role">
+    <div class="ec-pageHeader">
+        <h1>カートに移動中...</h1>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row">
+        <div class="col-12 text-center">
+            <p>商品をカートに追加しました。カートページに移動しています...</p>
+            <div class="spinner-border" role="status">
+                <span class="sr-only">Loading...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// JavaScriptでGETリクエストによるカートページへの移動を行う
+window.onload = function() {
+    setTimeout(function() {
+        window.location.href = '{{ url('cart') }}';
+    }, 1000); // 1秒後にリダイレクト
+};
+</script>
+{% endblock %}
