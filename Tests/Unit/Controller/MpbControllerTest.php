@@ -2,6 +2,7 @@
 
 namespace Plugin\MPBC43\Tests\Unit\Controller;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use Doctrine\DBAL\Connection;
 use Eccube\Entity\Cart;
 use Eccube\Entity\Master\ProductStatus;
@@ -84,9 +85,7 @@ class MpbControllerTest extends TestCase
     // 価格サニタイズのテスト
     // ---------------------------------------------------------------------------
 
-    /**
-     * @dataProvider priceCleanupProvider
-     */
+    #[DataProvider('priceCleanupProvider')]
     public function testPriceCleanupExtractsNumbersOnly(string $raw, int $expected): void
     {
         $clean = preg_replace('/[^\d]/', '', $raw);
@@ -94,7 +93,7 @@ class MpbControllerTest extends TestCase
         $this->assertSame($expected, $price, "Failed for input: $raw");
     }
 
-    public function priceCleanupProvider(): array
+    public static function priceCleanupProvider(): array
     {
         return [
             '¥とカンマ' => ['¥1,000', 1000],
