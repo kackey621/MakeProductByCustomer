@@ -29,6 +29,7 @@ class MpbController extends AbstractController
 {
     /** @var LoggerInterface */
     private $logger;
+
     /**
      * @var ProductRepository
      */
@@ -43,7 +44,7 @@ class MpbController extends AbstractController
      * @var EntityManagerInterface
      */
     protected $entityManager;
-    
+
     /**
      * @var PurchaseFlow
      */
@@ -86,7 +87,6 @@ class MpbController extends AbstractController
         $this->cartPurchaseFlow = $cartPurchaseFlow;
         $this->configRepository = $configRepository;
         $this->layoutRepository = $layoutRepository;
-        $this->cartPurchaseFlow = $cartPurchaseFlow;
     }
 
     /**
@@ -95,94 +95,61 @@ class MpbController extends AbstractController
      */
     public function index(Request $request)
     {
-        // 最初にログを出力してメソッドが実行されているか確認
-        error_log('[MPBC] Controller method started: ' . $request->getMethod() . ' ' . $request->getRequestUri());
-        
         $this->logger->info('[MPBC] Starting mpb product entry', [
             'method' => $request->getMethod(),
-            'request_uri' => $request->getRequestUri(),
-            'session_id' => $request->getSession()->getId()
+            'session_id' => substr($request->getSession()->getId(), 0, 8),
         ]);
 
         $form = $this->createForm(MpbType::class);
-        
-        // リクエストデータをログ出力
+
         if ($request->isMethod('POST')) {
-            error_log('[MPBC] POST request processing started');
-            error_log('[MPBC] Raw request data: ' . print_r($request->request->all(), true));
-            
-            $this->logger->info('[MPBC] POST request received', [
-                'request_data' => $request->request->all()
-            ]);
-            
-            // 手動でフォームデータを取得
+            // フォームデータを手動取得（クライアント側フォーマット ¥/カンマ をFormバリデーターがブロックするため）
             $mpbData = $request->request->all('mpb');
-            error_log('[MPBC] MPB data: ' . print_r($mpbData, true));
-            
+
             $productName = $mpbData['product_name'] ?? '';
             $priceRaw = $mpbData['price'] ?? '';
-            
-            // 価格データをクリーンアップ（￥マークやカンマを除去）
+
+            // 価格から数値のみ抽出（¥マーク・カンマ・全角文字を除去）
             $priceClean = preg_replace('/[^\d]/', '', $priceRaw);
-            $price = (int)$priceClean;
-            
-            $csrfToken = $mpbData['_token'] ?? '';
-            
-            error_log('[MPBC] Form data extracted: name=' . $productName . ', price_raw=' . $priceRaw . ', price=' . $price);
-            $this->logger->info('[MPBC] Manual form data extraction', [
+            $price = (int) $priceClean;
+
+            $this->logger->info('[MPBC] POST request received', [
                 'product_name' => $productName,
-                'price_raw' => $priceRaw,
                 'price' => $price,
-                'csrf_token' => $csrfToken
             ]);
-            
-            // CSRF検証をスキップして直接処理
+
             if (!empty($productName) && $price > 0) {
-                error_log('[MPBC] Validation passed, creating product and adding to cart');
                 try {
-                    // セッションIDを取得
                     $sessionId = $request->getSession()->getId();
-                    
-                    // 商品を作成してカートに追加
                     $result = $this->createProductAndAddToCart($productName, $price, $sessionId);
-                    
-                    error_log('[MPBC] Cart addition result: ' . ($result ? 'success' : 'failed'));
+
                     if ($result) {
-                        error_log('[MPBC] Successfully added to cart, redirecting');
                         $this->addFlash('eccube.front.cart.add.complete', '商品をカートに追加しました。');
                         return $this->redirectToRoute('cart');
-                    } else {
-                        error_log('[MPBC] Cart addition failed');
-                        $this->addFlash('eccube.front.cart.add.error', 'カートへの追加に失敗しました。');
                     }
+
+                    $this->addFlash('eccube.front.cart.add.error', 'カートへの追加に失敗しました。');
                 } catch (\Exception $e) {
-                    error_log('[MPBC] Exception occurred: ' . $e->getMessage());
-                    error_log('[MPBC] Exception trace: ' . $e->getTraceAsString());
-                    $this->logger->error('[MPBC] Error in manual form processing', [
+                    $this->logger->error('[MPBC] Error adding product to cart', [
                         'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString()
                     ]);
-                    $this->addFlash('eccube.front.request.error', 'エラーが発生しました: ' . $e->getMessage());
+                    $this->addFlash('eccube.front.request.error', 'エラーが発生しました。しばらくしてから再度お試しください。');
                 }
             } else {
-                error_log('[MPBC] Validation failed: productName="' . $productName . '", price=' . $price);
-                $this->addFlash('eccube.front.request.error', '商品名と価格を正しく入力してください。（商品名: ' . $productName . ', 価格: ' . $price . '）');
+                $this->addFlash('eccube.front.request.error', '商品名と価格を正しく入力してください。');
             }
         }
 
-        // Page entity for template compatibility
         $Page = new Page();
         $Page->setUrl('mpb');
         $Page->setName('商品作成');
 
-        // プラグイン設定から情報を取得
         $config = $this->configRepository->get();
         $layout = null;
         if ($config && $config->getPageLayout()) {
             $layout = $this->layoutRepository->find($config->getPageLayout());
         }
 
-        // カートの整合性をチェック（無効なProductClassを持つアイテムを削除）
         $this->cleanupInvalidCartItems();
 
         return $this->render('@MPBC43/front/mpb.twig', [
@@ -190,166 +157,117 @@ class MpbController extends AbstractController
             'Page' => $Page,
             'Layout' => $layout,
             'page_title' => $config ? $config->getPageTitle() : null,
-            'page_description' => $config ? $config->getPageDescription() : null
+            'page_description' => $config ? $config->getPageDescription() : null,
         ]);
     }
 
     /**
-     * 商品を作成してカートに追加する
+     * 商品を作成してカートに追加する。
+     * すべてのDB操作を単一トランザクションで行い、失敗時はロールバックする。
+     *
+     * @param string $productName
+     * @param int $price
+     * @param string $sessionId
+     * @return bool
+     * @throws \Exception
      */
-    private function createProductAndAddToCart($productName, $price, $sessionId)
+    private function createProductAndAddToCart(string $productName, int $price, string $sessionId): bool
     {
+        $connection = $this->entityManager->getConnection();
+        $connection->beginTransaction();
+
         try {
-            error_log('[MPBC] Starting createProductAndAddToCart: name=' . $productName . ', price=' . $price);
-            
-            // 商品の作成
+            // 商品エンティティ作成
             $product = new Product();
             $product->setName($productName);
-            // 商品を公開状態に設定（カートで使用するため）
             $product->setStatus($this->entityManager->find(ProductStatus::class, ProductStatus::DISPLAY_SHOW));
             $product->setCreateDate(new \DateTime());
             $product->setUpdateDate(new \DateTime());
-            
-            // 商品説明を設定（セッション情報も含める）
-            $product->setDescriptionDetail('カスタム商品: ' . $productName . ' [セッション: ' . substr($sessionId, 0, 8) . ']');
+            $product->setDescriptionDetail(
+                'カスタム商品: ' . $productName . ' [セッション: ' . substr($sessionId, 0, 8) . ']'
+            );
             $product->setDescriptionList('お客様専用のカスタム商品です。このセッションでのみ購入可能。');
-            
-            error_log('[MPBC] Product entity created');
 
-            // ProductClassの作成
+            // ProductClassエンティティ作成
             $productClass = new ProductClass();
             $productClass->setProduct($product);
-            $productClass->setPrice01($price); // 通常価格を設定
-            $productClass->setPrice02($price); // 販売価格も同じ値で設定
+            $productClass->setPrice01($price);
+            $productClass->setPrice02($price);
             $productClass->setVisible(true);
-            // 在庫を1個限りに設定（一度限りの購入）
             $productClass->setStockUnlimited(false);
             $productClass->setStock(1);
             $productClass->setCreateDate(new \DateTime());
             $productClass->setUpdateDate(new \DateTime());
-            
-            // SaleTypeを設定
             $productClass->setSaleType($this->entityManager->find(SaleType::class, SaleType::SALE_TYPE_NORMAL));
-            
-            // デフォルトのProductClassとして設定
             $productClass->setClassCategory1(null);
             $productClass->setClassCategory2(null);
-            
-            // ProductClassに重要なフィールドを設定
-            $productClass->setCode(null); // 商品コードは自動生成
-            $productClass->setDeliveryFee(null); // 個別送料なし
-            
+            $productClass->setCode(null);
+            $productClass->setDeliveryFee(null);
             $product->addProductClass($productClass);
 
-            error_log('[MPBC] ProductClass entity created');
-
-            // 商品をまず永続化してIDを生成
-            $this->entityManager->persist($product);
-            $this->entityManager->persist($productClass);
-            $this->entityManager->flush(); // ここでIDが生成される
-
-            error_log('[MPBC] Entities persisted and flushed');
-
-            // ProductStockエンティティを作成してProductClassに関連付け
+            // ProductStockエンティティ作成
             $productStock = new ProductStock();
             $productStock->setProductClass($productClass);
             $productStock->setStock(1);
             $productStock->setCreateDate(new \DateTime());
             $productStock->setUpdateDate(new \DateTime());
-            
-            // ProductClassとProductStockの双方向関連を設定
             $productClass->setProductStock($productStock);
+
+            // 単一トランザクションで一括永続化・フラッシュ
+            $this->entityManager->persist($product);
+            $this->entityManager->persist($productClass);
             $this->entityManager->persist($productStock);
             $this->entityManager->flush();
 
-            error_log('[MPBC] ProductStock entity created and persisted');
-            error_log('[MPBC] Final ProductClass ID: ' . $productClass->getId());
-            error_log('[MPBC] Final Product ID: ' . $product->getId());
+            $connection->commit();
 
-            $this->logger->info('[MPBC] Created Product for cart', [
+            $this->logger->info('[MPBC] Created custom product', [
                 'product_id' => $product->getId(),
                 'product_class_id' => $productClass->getId(),
-                'product_name' => $product->getName(),
-                'price' => $productClass->getPrice02()
+                'price' => $price,
             ]);
 
-            // カートに追加する前にエンティティをリフレッシュ
-            $this->entityManager->refresh($product);
-            $this->entityManager->refresh($productClass);
-            
-            // エンティティが確実に管理されるようにmerge
-            $productClass = $this->entityManager->merge($productClass);
-            $product = $this->entityManager->merge($product);
-
-            // 商品とProductClassの状態を確認
-            error_log('[MPBC] Product status: ' . $product->getStatus()->getName());
-            error_log('[MPBC] ProductClass visible: ' . ($productClass->isVisible() ? 'YES' : 'NO'));
-            error_log('[MPBC] ProductClass stock: ' . $productClass->getStock());
-            error_log('[MPBC] ProductClass ID for cart: ' . $productClass->getId());
-            error_log('[MPBC] ProductClass Product relationship: ' . ($productClass->getProduct() ? 'OK' : 'NULL'));
-
-            // カートに追加
-            error_log('[MPBC] Adding product to cart');
-            $this->cartService->addProduct($productClass, 1);
-            
-            // カートの状況をチェック
-            $Cart = $this->cartService->getCart();
-            if ($Cart) {
-                $cartItems = $Cart->getCartItems();
-                error_log('[MPBC] Cart items count after add: ' . count($cartItems));
-                foreach ($cartItems as $item) {
-                    error_log('[MPBC] Cart item: ' . $item->getProductClass()->getProduct()->getName() . ' - Quantity: ' . $item->getQuantity());
-                }
-            } else {
-                error_log('[MPBC] Cart is null after addProduct');
-            }
-            
-            // カートの購入フローを実行して合計金額を計算
-            error_log('[MPBC] Executing cart purchase flow');
-            if ($Cart) {
-                // フロー実行前の商品の詳細情報を確認
-                $cartItems = $Cart->getCartItems();
-                foreach ($cartItems as $item) {
-                    $pc = $item->getProductClass();
-                    $prod = $pc->getProduct();
-                    error_log('[MPBC] Pre-flow - Product: ' . $prod->getName() . ', Status: ' . $prod->getStatus()->getName() . ', Visible: ' . ($pc->isVisible() ? 'YES' : 'NO') . ', Stock: ' . $pc->getStock());
-                }
-                
-                $flowResult = $this->cartPurchaseFlow->validate($Cart, new PurchaseContext());
-                error_log('[MPBC] Purchase flow has errors: ' . ($flowResult->hasError() ? 'YES' : 'NO'));
-                if ($flowResult->hasError()) {
-                    foreach ($flowResult->getErrors() as $error) {
-                        error_log('[MPBC] Purchase flow error: ' . $error->getMessage());
-                    }
-                } else {
-                    $this->cartPurchaseFlow->commit($Cart, new PurchaseContext());
-                    error_log('[MPBC] Purchase flow committed successfully');
-                }
-                $this->cartService->save();
-                
-                // フロー実行後のカート状況をチェック
-                $cartItems = $Cart->getCartItems();
-                error_log('[MPBC] Cart items count after flow: ' . count($cartItems));
-            }
-
-            error_log('[MPBC] Cart service completed');
-            $this->logger->info('[MPBC] Added to cart successfully');
-            
-            return true;
         } catch (\Exception $e) {
-            error_log('[MPBC] Exception in createProductAndAddToCart: ' . $e->getMessage());
-            $this->logger->error('[MPBC] Exception in createProductAndAddToCart', [
+            if ($connection->isTransactionActive()) {
+                $connection->rollBack();
+            }
+            $this->logger->error('[MPBC] Failed to create product, transaction rolled back', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
             ]);
             throw $e;
         }
+
+        // トランザクションコミット後にDB値を同期
+        $this->entityManager->refresh($product);
+        $this->entityManager->refresh($productClass);
+
+        // カートに追加
+        $this->cartService->addProduct($productClass, 1);
+
+        $Cart = $this->cartService->getCart();
+        if ($Cart) {
+            $flowResult = $this->cartPurchaseFlow->validate($Cart, new PurchaseContext());
+            if ($flowResult->hasError()) {
+                foreach ($flowResult->getErrors() as $error) {
+                    $this->logger->warning('[MPBC] Purchase flow validation error', [
+                        'message' => $error->getMessage(),
+                    ]);
+                }
+            } else {
+                $this->cartPurchaseFlow->commit($Cart, new PurchaseContext());
+            }
+            $this->cartService->save();
+        }
+
+        $this->logger->info('[MPBC] Product added to cart successfully');
+
+        return true;
     }
 
     /**
-     * カート内の無効なProductClassを持つアイテムを削除
+     * カート内の無効なProductClassを持つアイテムを削除する
      */
-    private function cleanupInvalidCartItems()
+    private function cleanupInvalidCartItems(): void
     {
         try {
             $Cart = $this->cartService->getCart();
@@ -360,47 +278,51 @@ class MpbController extends AbstractController
             $itemsToRemove = [];
             foreach ($Cart->getCartItems() as $CartItem) {
                 $ProductClass = $CartItem->getProductClass();
-                
-                // ProductClassが存在しないか、Productが存在しない場合
+
                 if (!$ProductClass || !$ProductClass->getId()) {
                     $itemsToRemove[] = $CartItem;
                     continue;
                 }
 
                 try {
-                    // ProductClassがデータベースに存在するかチェック
-                    $this->entityManager->find(ProductClass::class, $ProductClass->getId());
-                    
-                    // Productが存在するかチェック
-                    $Product = $ProductClass->getProduct();
+                    $dbProductClass = $this->entityManager->find(ProductClass::class, $ProductClass->getId());
+                    if (!$dbProductClass) {
+                        $itemsToRemove[] = $CartItem;
+                        continue;
+                    }
+
+                    $Product = $dbProductClass->getProduct();
                     if (!$Product || !$Product->getId()) {
                         $itemsToRemove[] = $CartItem;
                         continue;
                     }
 
-                    // Productがデータベースに存在するかチェック
-                    $this->entityManager->find(Product::class, $Product->getId());
-                    
+                    $dbProduct = $this->entityManager->find(Product::class, $Product->getId());
+                    if (!$dbProduct) {
+                        $itemsToRemove[] = $CartItem;
+                    }
                 } catch (\Exception $e) {
-                    // エンティティが見つからない場合は削除対象に追加
                     $itemsToRemove[] = $CartItem;
-                    error_log('[MPBC] Invalid cart item found: ' . $e->getMessage());
+                    $this->logger->warning('[MPBC] Invalid cart item detected during cleanup', [
+                        'product_class_id' => $ProductClass ? $ProductClass->getId() : null,
+                        'error' => $e->getMessage(),
+                    ]);
                 }
             }
 
-            // 無効なアイテムを削除
-            foreach ($itemsToRemove as $item) {
-                $Cart->removeCartItem($item);
-                error_log('[MPBC] Removed invalid cart item');
-            }
-
             if (!empty($itemsToRemove)) {
+                foreach ($itemsToRemove as $item) {
+                    $Cart->removeCartItem($item);
+                }
                 $this->cartService->save();
-                error_log('[MPBC] Cleaned up ' . count($itemsToRemove) . ' invalid cart items');
+                $this->logger->info('[MPBC] Cleaned up invalid cart items', [
+                    'removed_count' => count($itemsToRemove),
+                ]);
             }
-
         } catch (\Exception $e) {
-            error_log('[MPBC] Error cleaning up cart items: ' . $e->getMessage());
+            $this->logger->error('[MPBC] Error during cart cleanup', [
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 }

@@ -39,63 +39,61 @@ class OrderEventListener implements EventSubscriberInterface
     }
 
     /**
-     * 注文完了時の処理
-     * 
+     * 注文完了時の処理。
+     * セッションマーカー付きカスタム商品を購入不可能な状態にする。
+     *
      * @param EventArgs $event
      */
     public function onShoppingComplete(EventArgs $event)
     {
         /** @var \Eccube\Entity\Order $Order */
         $Order = $event->getArgument('Order');
-        
+
         if (!$Order) {
             return;
         }
 
-        try {
-            $this->logger->info('[MPBC] Order completed, checking for custom products', [
-                'order_id' => $Order->getId()
-            ]);
+        $this->logger->info('[MPBC] Order completed, checking for custom products', [
+            'order_id' => $Order->getId(),
+        ]);
 
-            // 注文内の商品をチェック
-            foreach ($Order->getOrderItems() as $OrderItem) {
-                $Product = $OrderItem->getProduct();
-                
-                if (!$Product) {
-                    continue;
-                }
+        foreach ($Order->getOrderItems() as $OrderItem) {
+            $Product = $OrderItem->getProduct();
 
-                // カスタム商品（セッション情報を含む商品）かどうかチェック
-                $description = $Product->getDescriptionDetail();
-                if ($description && strpos($description, '[セッション:') !== false) {
-                    $this->logger->info('[MPBC] Found custom product in order, marking as unavailable', [
-                        'product_id' => $Product->getId(),
-                        'product_name' => $Product->getName()
-                    ]);
-
-                    // 商品を購入不可能な状態に変更
-                    $this->disableCustomProduct($Product);
-                }
+            if (!$Product) {
+                continue;
             }
 
-            $this->entityManager->flush();
+            $description = $Product->getDescriptionDetail();
+            if (!$description || strpos($description, '[セッション:') === false) {
+                continue;
+            }
 
-        } catch (\Exception $e) {
-            $this->logger->error('[MPBC] Error in order completion handler', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+            $this->logger->info('[MPBC] Found custom product in order, marking as purchased', [
+                'product_id' => $Product->getId(),
+                'product_name' => $Product->getName(),
             ]);
+
+            try {
+                $this->disableCustomProduct($Product);
+                $this->entityManager->flush();
+            } catch (\Exception $e) {
+                $this->logger->error('[MPBC] Failed to disable custom product after order', [
+                    'product_id' => $Product->getId(),
+                    'error' => $e->getMessage(),
+                ]);
+                // 他の商品の処理を継続する
+            }
         }
     }
 
     /**
-     * カスタム商品を無効化
-     * 
+     * カスタム商品を購入済み状態にして再購入を防止する
+     *
      * @param \Eccube\Entity\Product $Product
      */
-    private function disableCustomProduct(\Eccube\Entity\Product $Product)
+    private function disableCustomProduct(\Eccube\Entity\Product $Product): void
     {
-        // すべてのProductClassを非表示にして購入を不可能にする
         foreach ($Product->getProductClasses() as $ProductClass) {
             $ProductClass->setVisible(false);
             $ProductClass->setStockUnlimited(false);
@@ -103,7 +101,6 @@ class OrderEventListener implements EventSubscriberInterface
             $this->entityManager->persist($ProductClass);
         }
 
-        // 商品名に購入済みマークを追加
         $currentName = $Product->getName();
         if (strpos($currentName, '[購入済み]') === false) {
             $Product->setName($currentName . ' [購入済み]');
@@ -113,7 +110,7 @@ class OrderEventListener implements EventSubscriberInterface
 
         $this->logger->info('[MPBC] Custom product disabled after purchase', [
             'product_id' => $Product->getId(),
-            'product_name' => $Product->getName()
+            'product_name' => $Product->getName(),
         ]);
     }
 }

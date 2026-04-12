@@ -47,10 +47,9 @@ class ProductListEventListener implements EventSubscriberInterface
             return;
         }
         
-        $sessionId = $request->getSession()->getId();
-        
-        // カスタム商品（セッション情報を含む商品）を除外
-        $qb->andWhere('p.description_detail NOT LIKE :session_filter')
-           ->setParameter('session_filter', '%セッション: ' . substr($sessionId, 0, 8) . '%');
+        // カスタム商品（セッション情報を含む商品）を全て除外する
+        // 特定セッションだけでなく、全MPBCカスタム商品を一覧から非表示にする
+        $qb->andWhere('p.descriptionDetail NOT LIKE :session_filter OR p.descriptionDetail IS NULL')
+           ->setParameter('session_filter', '%[セッション:%');
     }
 }
