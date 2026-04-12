@@ -9,12 +9,12 @@
             <directory>Tests</directory>
         </testsuite>
     </testsuites>
-    <coverage>
+    <source>
         <include>
             <directory suffix=".php">Controller</directory>
             <directory suffix=".php">EventListener</directory>
             <directory suffix=".php">Entity</directory>
             <directory suffix=".php">Repository</directory>
         </include>
-    </coverage>
+    </source>
 </phpunit>
