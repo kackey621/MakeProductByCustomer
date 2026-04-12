@@ -1,8 +1,11 @@
 {
     "name": "mpbc/mpbc43-plugin",
-    "version": "1.0.0",
     "description": "Make Product By Customer for EC-CUBE 4.3",
     "type": "eccube-plugin",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.0"
+    },
     "require-dev": {
         "phpunit/phpunit": "^9.5 || ^10.0",
         "mockery/mockery": "^1.6"
