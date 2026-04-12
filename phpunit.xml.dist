@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="Tests/bootstrap.php"
+         colors="true"
+         stopOnFailure="false">
+    <testsuites>
+        <testsuite name="MPBC43 Plugin Tests">
+            <directory>Tests</directory>
+        </testsuite>
+    </testsuites>
+    <coverage>
+        <include>
+            <directory suffix=".php">Controller</directory>
+            <directory suffix=".php">EventListener</directory>
+            <directory suffix=".php">Entity</directory>
+            <directory suffix=".php">Repository</directory>
+        </include>
+    </coverage>
+</phpunit>

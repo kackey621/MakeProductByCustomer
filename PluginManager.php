@@ -39,7 +39,6 @@ class PluginManager extends AbstractPluginManager
                 $entityManager->flush($Config);
             }
         }
-         $Config = $this->createConfig($entityManager);
          
         // Ensure a hidden base product with a single class exists for MPBC
         $productRepo = $entityManager->getRepository(Product::class);

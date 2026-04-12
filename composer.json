@@ -3,16 +3,34 @@
     "version": "1.0.0",
     "description": "Make Product By Customer for EC-CUBE 4.3",
     "type": "eccube-plugin",
-    "require": {
-        "eccube/plugin-installer": "~0.0.6 || ~0.0.7 || ~2.0"
+    "require-dev": {
+        "phpunit/phpunit": "^9.5 || ^10.0",
+        "mockery/mockery": "^1.6"
+    },
+    "suggest": {
+        "ec-cube/plugin-installer": "EC-CUBEのプラグインインストーラー（EC-CUBE本体に含まれています）"
     },
     "autoload": {
         "psr-4": {
             "Plugin\\MPBC43\\": "."
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Plugin\\MPBC43\\Tests\\": "Tests/"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit --testdox"
+    },
     "extra": {
         "code": "MPBC43",
         "name": "商品名・価格自由設定プラグイン"
+    },
+    "config": {
+        "allow-plugins": {
+            "ec-cube/plugin-installer": true,
+            "eccube/plugin-installer": true
+        }
     }
 }
